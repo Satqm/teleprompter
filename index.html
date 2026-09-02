@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observe With Satyam | Pro Teleprompter</title>
+    <!-- FontAwesome for Social Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --border-color: #000000;
+            --shadow-color: #000000;
+            --accent-1: #ff3b30; /* Red */
+            --accent-2: #ffcc00; /* Yellow */
+            --accent-3: #34c759; /* Green */
+            --text-color: #ffffff;
+            --glass-bg: rgba(0, 0, 0, 0.4);
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            overflow: hidden; cursor: none;
+        }
+
+        /* Custom Cursor */
+        .custom-cursor {
+            width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%;
+            position: fixed; pointer-events: none; z-index: 9999;
+            transform: translate(-50%, -50%); backdrop-filter: invert(100%);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+        body:hover .custom-cursor { width: 30px; height: 30px; background: rgba(0,0,0,0.1); }
+
+        /* Infinite Dotted Grid */
+        .dotted-grid-bg {
+            position: fixed; top: 0; left: 0; width: 200vw; height: 200vh;
+            background-image: radial-gradient(#000 2px, transparent 2px);
+            background-size: 30px 30px;
+            animation: moveGrid 20s linear infinite;
+            z-index: -2; opacity: 0.3;
+        }
+        @keyframes moveGrid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-50px, -50px); }
+        }
+
+        /* High-Res Camera Background */
+        #camera-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: -1; display: none;
+            transform: scaleX(-1);
+        }
+
+        /* Neo-Brutalist Setup Panel */
+        #controls {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 95%; max-width: 1000px; z-index: 100;
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #controls.hidden { top: -200%; }
+
+        .card-wrapper {
+            position: relative; padding: 25px; background: #fff;
+            border: 4px solid var(--border-color);
+            box-shadow: 10px 10px 0px var(--shadow-color);
+            overflow: hidden;
+        }
+        
+        .card-glow {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 204, 0, 0.3) 0%, transparent 50%);
+            pointer-events: none; z-index: 1;
+        }
+
+        .controls-inner { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 15px; }
+
+        /* Branding */
+        .header-brand {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 3px solid #000; padding-bottom: 10px;
+        }
+        .header-brand h2 { margin: 0; font-weight: 900; font-size: 1.4rem; letter-spacing: -1px; }
+        .social-icons a {
+            color: #000; font-size: 1.4rem; margin-left: 15px;
+            transition: transform 0.2s, color 0.2s; display: inline-block; cursor: none;
+        }
+        .social-icons a:hover { transform: scale(1.2) rotate(10deg); color: var(--accent-1); }
+
+        textarea {
+            width: 100%; height: 120px; background: #f9f9f9; color: #000;
+            border: 3px solid #000; box-shadow: inset 4px 4px 0px rgba(0,0,0,0.05);
+            padding: 15px; font-size: 18px; resize: vertical; box-sizing: border-box;
+            font-family: inherit; font-weight: bold;
+        }
+
+        .control-row { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; }
+        .control-group { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+        /* Buttons */
+        button {
+            padding: 10px 20px; border: 3px solid #000; background: #fff;
+            color: #000; cursor: none; font-weight: 900; font-family: inherit; font-size: 14px;
+            text-transform: uppercase; box-shadow: 4px 4px 0px #000;
+            transition: transform 0.1s, box-shadow 0.1s; display: flex; align-items: center; gap: 8px;
+        }
+        button:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #000; }
+        .btn-primary { background: var(--accent-2); }
+        .btn-danger { background: var(--accent-1); color: #fff; }
+        .btn-success { background: var(--accent-3); }
+        .btn-dark { background: #000; color: #fff; }
+
+        .settings-box {
+            display: flex; align-items: center; gap: 10px; padding: 8px 15px;
+            border: 3px solid #000; background: #fff; box-shadow: 3px 3px 0px #000; font-weight: bold;
+        }
+        input[type="color"] { border: none; width: 25px; height: 25px; padding: 0; cursor: none; }
+        input[type="range"] { cursor: none; width: 100px; accent-color: #000; }
+
+        /* Prompter Surface */
+        #prompter-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--glass-bg); backdrop-filter: blur(2px);
+            overflow: hidden; display: none; z-index: 50;
+        }
+        
+        #prompter-scroller {
+            position: absolute; top: 0; left: 10%; width: 80%;
+            /* Allows manual scroll manipulation via JS */
+            transform: translateY(100vh); 
+            will-change: transform;
+        }
+
+        #prompter-text {
+            font-size: 70px; line-height: 1.5; text-align: center;
+            white-space: pre-wrap; padding-bottom: 50vh; padding-top: 50vh;
+            color: var(--text-color); font-family: 'Segoe UI', sans-serif;
+            font-weight: 800; text-shadow: 3px 3px 8px rgba(0,0,0,0.9);
+        }
+        .mirrored { transform: scaleX(-1); }
+
+        /* Reading Guide / Eye-line */
+        .reading-guide {
+            position: absolute; top: 50%; left: 0; width: 100%; height: 4px;
+            background: rgba(255, 59, 48, 0.5); z-index: 51; pointer-events: none;
+            box-shadow: 0 0 10px rgba(255, 59, 48, 0.8); display: none;
+        }
+
+        /* Active Prompter HUD */
+        #hud-overlay {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 101;
+            display: none; background: #fff; padding: 15px 25px; border: 4px solid #000;
+            box-shadow: 8px 8px 0px #000; gap: 20px; align-items: center; width: 90%; max-width: 900px;
+            justify-content: space-between; flex-wrap: wrap;
+        }
+
+        .hud-left, .hud-right { display: flex; align-items: center; gap: 15px; }
+
+        .rec-indicator {
+            display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+            background: #ff3b30; animation: pulse 1s infinite; border: 2px solid #000;
+        }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.7); } 70% { box-shadow: 0 0 0 10px rgba(255,59,48,0); } 100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); } }
+
+        .helper-text { font-size: 12px; font-weight: bold; background: #e0e0e0; padding: 5px; border: 1px solid #000; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="custom-cursor" id="cursor"></div>
+    <div class="dotted-grid-bg"></div>
+    <video id="camera-bg" autoplay muted playsinline></video>
+    <div class="reading-guide" id="reading-guide"></div>
+
+    <!-- Main Setup Controls -->
+    <div id="controls">
+        <div class="card-wrapper" id="card-wrapper">
+            <div class="card-glow" id="card-glow"></div>
+            <div class="controls-inner">
+                
+                <div class="header-brand">
+                    <h2>OBSERVE WITH SATYAM | STUDIO PROMPTER</h2>
+                    <div class="social-icons">
+                        <a href="https://linkedin.com/in/satyam-kumar5286o" target="_blank" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="https://youtube.com/@observe_with_satyam?si=xKMKJHWzcjVFeDFj" target="_blank" title="YouTube"><i class="fab fa-youtube"></i></a>
+                        <a href="https://instagram.com/observe_with_satyam?igsh=MWdxYnp1Z283b2ZyeQ==" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="https://satqm.github.io/Portfolio-" target="_blank" title="Portfolio"><i class="fas fa-globe"></i></a>
+                    </div>
+                </div>
+
+                <textarea id="script-input" placeholder=">> INITIALIZE HIGH-RES SCRIPT HERE..."></textarea>
+                
+                <div class="control-row">
+                    <div class="control-group">
+                        <button onclick="saveScript()"><i class="fas fa-save"></i> Save</button>
+                        <button onclick="loadScript()"><i class="fas fa-folder-open"></i> Load</button>
+                        <button onclick="toggleCamera()" class="btn-primary" id="cam-btn"><i class="fas fa-video"></i> 4K/HD Camera</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="settings-box">
+                            Text: <input type="color" id="text-color" value="#ffffff">
+                            Bg: <input type="color" id="bg-color" value="#000000">
+                        </div>
+                        <div class="settings-box">
+                            Size: <input type="range" id="font-size" min="40" max="150" value="80">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-row" style="border-top: 3px solid #000; padding-top: 15px;">
+                    <div class="control-group">
+                        <button onclick="toggleMirror()"><i class="fas fa-arrows-alt-h"></i> Mirror Text</button>
+                        <button onclick="toggleFullScreen()"><i class="fas fa-expand"></i> Fullscreen</button>
+                    </div>
+
+                    <div class="control-group" id="video-controls" style="display:none;">
+                        <button class="btn-danger" id="record-btn" onclick="toggleRecording()"><i class="fas fa-circle"></i> REC</button>
+                        <button class="btn-primary" id="pause-rec-btn" onclick="pauseResumeRecording()" style="display:none;"><i class="fas fa-pause"></i> Pause</button>
+                    </div>
+                    
+                    <button onclick="startPrompter()" class="btn-success"><i class="fas fa-play"></i> LAUNCH PROMPTER</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teleprompter Surface -->
+    <div id="prompter-container">
+        <div id="prompter-scroller">
+            <div id="prompter-text"></div>
+        </div>
+    </div>
+
+    <!-- Active Prompter HUD -->
+    <div id="hud-overlay">
+        <div class="hud-left">
+            <div id="rec-status" style="display:none; align-items:center; gap:10px; font-weight:900; color:#ff3b30; font-size: 1.2rem;">
+                <span class="rec-indicator"></span> RECORDING
+            </div>
+            <div class="settings-box">
+                <i class="fas fa-tachometer-alt"></i> Speed: 
+                <input type="range" id="active-speed" min="0" max="15" value="3" step="0.5">
+            </div>
+        </div>
+        <div class="hud-right">
+            <div class="helper-text">Scroll mouse wheel to adjust script position manually</div>
+            <button onclick="togglePlayPauseText()" id="play-pause-text-btn" class="btn-primary"><i class="fas fa-pause"></i> Pause Scroll</button>
+            <button onclick="stopPrompter()" class="btn-dark"><i class="fas fa-stop"></i> Stop & Exit</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Custom Cursor & Glow (Neo-Brutalist) ---
+        const cursor = document.getElementById('cursor');
+        const cardWrapper = document.getElementById('card-wrapper');
+        const cardGlow = document.getElementById('card-glow');
+
+        document.addEventListener('mousemove', e => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        cardWrapper.addEventListener('mousemove', e => {
+            const rect = cardWrapper.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            cardGlow.style.setProperty('--mouse-x', x + '%');
+            cardGlow.style.setProperty('--mouse-y', y + '%');
+        });
+
+        // --- Core Elements ---
+        const controls = document.getElementById('controls');
+        const scriptInput = document.getElementById('script-input');
+        const prompterContainer = document.getElementById('prompter-container');
+        const prompterScroller = document.getElementById('prompter-scroller');
+        const prompterText = document.getElementById('prompter-text');
+        const hudOverlay = document.getElementById('hud-overlay');
+        const playPauseTextBtn = document.getElementById('play-pause-text-btn');
+        const activeSpeed = document.getElementById('active-speed');
+        const readingGuide = document.getElementById('reading-guide');
+        
+        // Video Elements
+        const cameraBg = document.getElementById('camera-bg');
+        const videoControlsGroup = document.getElementById('video-controls');
+        const recordBtn = document.getElementById('record-btn');
+        const pauseRecBtn = document.getElementById('pause-rec-btn');
+        const recStatus = document.getElementById('rec-status');
+
+        let isTextPlaying = false;
+        let animationId;
+        let scrollYPos = 0; // Starts at 0 (top of screen)
+        let prompterActive = false;
+
+        // --- Video Recording State ---
+        let stream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+
+        // --- IndexedDB Setup ---
+        let db;
+        const request = indexedDB.open("TeleprompterDBNeo", 1);
+        request.onupgradeneeded = e => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("scripts")) db.createObjectStore("scripts", { keyPath: "id" });
+        };
+        request.onsuccess = e => { db = e.target.result; loadScript(); };
+
+        function saveScript() {
+            db.transaction(["scripts"], "readwrite").objectStore("scripts").put({ id: "main_script", content: scriptInput.value });
+            alert("Script Saved!");
+        }
+        function loadScript() {
+            db.transaction(["scripts"], "readonly").objectStore("scripts").get("main_script").onsuccess = e => {
+                if (e.target.result) scriptInput.value = e.target.result.content;
+            };
+        }
+
+        // --- UI & Style Updates ---
+        const hexToRgba = (hex, alpha) => {
+            const [r, g, b] = hex.match(/\w\w/g).map(x => parseInt(x, 16));
+            return `rgba(${r},${g},${b},${alpha})`;
+        };
+
+        function updateStyles() {
+            prompterText.style.color = document.getElementById('text-color').value;
+            prompterText.style.fontSize = document.getElementById('font-size').value + 'px';
+            const bgColor = document.getElementById('bg-color').value;
+            // Transparent enough to see high-res video clearly
+            const alpha = stream ? 0.25 : 0.9; 
+            prompterContainer.style.backgroundColor = hexToRgba(bgColor, alpha);
+        }
+        
+        document.getElementById('text-color').addEventListener('input', updateStyles);
+        document.getElementById('bg-color').addEventListener('input', updateStyles);
+        document.getElementById('font-size').addEventListener('input', updateStyles);
+        function toggleMirror() { prompterText.classList.toggle('mirrored'); }
+        
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => alert(`Error: ${err.message}`));
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // --- High-Quality Camera & Recording ---
+        async function toggleCamera() {
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
+                cameraBg.style.display = 'none';
+                videoControlsGroup.style.display = 'none';
+                document.getElementById('cam-btn').innerHTML = '<i class="fas fa-video"></i> 4K/HD Camera';
+                if(isRecording) stopRecordingAction();
+            } else {
+                try {
+                    // Requesting highest possible quality based on device capabilities
+                    const constraints = {
+                        video: { 
+                            width: { ideal: 1920, max: 3840 },
+                            height: { ideal: 1080, max: 2160 },
+                            frameRate: { ideal: 60, max: 60 },
+                            facingMode: "user" 
+                        },
+                        audio: { echoCancellation: true, noiseSuppression: true }
+                    };
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    cameraBg.srcObject = stream;
+                    cameraBg.style.display = 'block';
+                    videoControlsGroup.style.display = 'flex';
+                    document.getElementById('cam-btn').innerHTML = '<i class="fas fa-video-slash"></i> Turn Off Camera';
+                } catch (err) { alert("Camera access denied or device does not support high-res video."); }
+            }
+            updateStyles();
+        }
+
+        function toggleRecording() {
+            if (!stream) return;
+            if (isRecording) {
+                stopRecordingAction();
+            } else {
+                recordedChunks = [];
+                // Use high bitrate encoding if supported
+                const options = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
+                    ? { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: 8000000 } 
+                    : { videoBitsPerSecond: 5000000 };
+                    
+                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = saveVideoFile;
+                mediaRecorder.start();
+                
+                isRecording = true;
+                recordBtn.innerHTML = '<i class="fas fa-stop-circle"></i> STOP VIDEO';
+                pauseRecBtn.style.display = 'flex';
+                pauseRecBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                recStatus.style.display = 'flex';
+            }
+        }
+
+        function pauseResumeRecording() {
+            if (!mediaRecorder) return;
+            if (mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+                pauseRecBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
+                recStatus.innerHTML = '<span class="rec-indicator" style="background:#ffcc00; animation:none;"></span> PAUSED';
+                recStatus.style.color = "#ffcc00";
+            } else if (mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+                pauseRecBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                recStatus.innerHTML = '<span class="rec-indicator"></span> RECORDING';
+                recStatus.style.color = "#ff3b30";
+            }
+        }
+
+        function stopRecordingAction() {
+            if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            isRecording = false;
+            recordBtn.innerHTML = '<i class="fas fa-circle"></i> REC';
+            pauseRecBtn.style.display = 'none';
+            recStatus.style.display = 'none';
+        }
+
+        function saveVideoFile() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none'; a.href = url; 
+            a.download = `ObserveWithSatyam_Take_${new Date().getTime()}.webm`;
+            document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
+        }
+
+        // --- Prompter Execution & Manual Scroll Logic ---
+        function startPrompter() {
+            const text = scriptInput.value.trim();
+            if (!text) return alert("Enter script.");
+            
+            prompterText.innerText = text;
+            controls.classList.add('hidden');
+            prompterContainer.style.display = 'block';
+            hudOverlay.style.display = 'flex';
+            readingGuide.style.display = 'block';
+            
+            // Reset position to just below center screen
+            scrollYPos = window.innerHeight * 0.6; 
+            updateScrollerPosition();
+            
+            prompterActive = true;
+            isTextPlaying = true;
+            playPauseTextBtn.innerHTML = '<i class="fas fa-pause"></i> Pause Scroll';
+            scrollText();
+        }
+
+        function stopPrompter() {
+            prompterActive = false;
+            isTextPlaying = false;
+            cancelAnimationFrame(animationId);
+            controls.classList.remove('hidden');
+            prompterContainer.style.display = 'none';
+            hudOverlay.style.display = 'none';
+            readingGuide.style.display = 'none';
+            
+            // Automatically stop recording when script ends
+            if(isRecording) stopRecordingAction(); 
+        }
+
+        function togglePlayPauseText() {
+            isTextPlaying = !isTextPlaying;
+            playPauseTextBtn.innerHTML = isTextPlaying ? '<i class="fas fa-pause"></i> Pause Scroll' : '<i class="fas fa-play"></i> Resume Scroll';
+            if (isTextPlaying) scrollText();
+            else cancelAnimationFrame(animationId);
+        }
+
+        function updateScrollerPosition() {
+            prompterScroller.style.transform = `translateY(${scrollYPos}px)`;
+        }
+
+        // Smooth Auto-Scroll
+        function scrollText() {
+            if (!isTextPlaying || !prompterActive) return;
+            
+            // Get speed directly from the HUD slider
+            const speed = parseFloat(activeSpeed.value);
+            scrollYPos -= speed; 
+            updateScrollerPosition();
+            
+            // Stop if scrolled all the way up past the text height
+            if (scrollYPos < -prompterScroller.clientHeight) {
+                stopPrompter();
+                return;
+            }
+            animationId = requestAnimationFrame(scrollText);
+        }
+
+        // Manual Scroll Override (Mouse Wheel / Trackpad)
+        window.addEventListener('wheel', (e) => {
+            if (prompterActive) {
+                scrollYPos -= e.deltaY; // Adjust position based on scroll direction
+                updateScrollerPosition();
+            }
+        });
+
+        // Click on prompter background pauses/plays text
+        prompterContainer.addEventListener('click', (e) => {
+            // Prevent triggering if clicking on the HUD
+            if(!e.target.closest('#hud-overlay')) {
+                togglePlayPauseText();
+            }
+        });
+
+        // Initialize colors
+        updateStyles(); 
+    </script>
+</body>
+</html>
