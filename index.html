@@ -3,153 +3,268 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Teleprompter</title>
+    <title>Neo-Brutalist Pro Teleprompter</title>
+    <!-- FontAwesome for Social Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-color: rgba(18, 18, 18, 0.85); /* Semi-transparent by default */
+            --bg-color: #f0f0f0;
+            --border-color: #000000;
+            --shadow-color: #000000;
+            --accent-1: #ff3b30; /* Red */
+            --accent-2: #ffcc00; /* Yellow */
+            --accent-3: #34c759; /* Green */
             --text-color: #ffffff;
-            --accent: #3b82f6;
-            --glass-bg: rgba(25, 25, 25, 0.85);
+            --glass-bg: rgba(255, 255, 255, 0.1);
         }
+
         body, html {
             margin: 0; padding: 0; height: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Courier New', Courier, monospace;
             background-color: var(--bg-color);
-            color: var(--text-color);
             overflow: hidden;
+            cursor: none; /* Custom cursor */
         }
-        
+
+        /* Custom Cursor */
+        .custom-cursor {
+            width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%;
+            position: fixed; pointer-events: none; z-index: 9999;
+            transform: translate(-50%, -50%); backdrop-filter: invert(100%);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+        body:hover .custom-cursor { width: 30px; height: 30px; background: rgba(0,0,0,0.1); }
+
+        /* Infinite Dotted Grid */
+        .dotted-grid-bg {
+            position: fixed; top: 0; left: 0; width: 200vw; height: 200vh;
+            background-image: radial-gradient(#000 2px, transparent 2px);
+            background-size: 30px 30px;
+            animation: moveGrid 20s linear infinite;
+            z-index: -2; opacity: 0.3;
+        }
+        @keyframes moveGrid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-50px, -50px); }
+        }
+
         /* Camera Background */
         #camera-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; z-index: -1; display: none;
-            transform: scaleX(-1); /* Mirror camera horizontally */
+            transform: scaleX(-1);
         }
 
+        /* Neo-Brutalist Control Panel */
         #controls {
-            position: absolute; top: 0; left: 0; width: 100%;
-            background: var(--glass-bg); backdrop-filter: blur(10px);
-            padding: 15px; box-sizing: border-box; z-index: 100;
-            display: flex; flex-wrap: wrap; gap: 15px; align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            transition: transform 0.3s ease;
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 900px; z-index: 100;
+            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #controls.hidden { transform: translateY(-100%); }
+        #controls.hidden { top: -200%; }
+
+        .card-wrapper {
+            position: relative; padding: 20px; background: #fff;
+            border: 3px solid var(--border-color);
+            box-shadow: 8px 8px 0px var(--shadow-color);
+            overflow: hidden; border-radius: 0px;
+        }
+        
+        /* Cursor Tracking Glow */
+        .card-glow {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 204, 0, 0.4) 0%, transparent 40%);
+            pointer-events: none; z-index: 1;
+        }
+
+        .controls-inner { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 15px; }
+
+        /* Social Icons Branding */
+        .header-brand {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 5px;
+        }
+        .header-brand h2 { margin: 0; font-weight: 900; text-transform: uppercase; font-size: 1.2rem; }
+        .social-icons a {
+            color: #000; font-size: 1.2rem; margin-left: 12px;
+            transition: transform 0.2s, color 0.2s; display: inline-block;
+        }
+        .social-icons a:hover { transform: scale(1.2) rotate(5deg); color: var(--accent-1); }
+
         textarea {
-            width: 100%; height: 80px;
-            background: #2a2a2a; color: #fff;
-            border: 1px solid #444; border-radius: 8px;
-            padding: 10px; font-size: 16px; resize: vertical;
+            width: 100%; height: 80px; background: #fff; color: #000;
+            border: 2px solid #000; box-shadow: inset 4px 4px 0px rgba(0,0,0,0.05);
+            padding: 10px; font-size: 16px; resize: vertical; box-sizing: border-box;
+            font-family: inherit; font-weight: bold;
         }
+
+        .control-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+        .control-group { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+        /* Neo-Brutalist Buttons */
         button {
-            padding: 8px 12px; border: none; border-radius: 6px;
-            background: var(--accent); color: white; cursor: pointer;
-            font-weight: bold; transition: background 0.2s;
+            padding: 8px 15px; border: 2px solid #000; background: #fff;
+            color: #000; cursor: none; font-weight: 900; font-family: inherit;
+            text-transform: uppercase; box-shadow: 4px 4px 0px #000;
+            transition: transform 0.1s, box-shadow 0.1s;
         }
-        button:hover { background: #2563eb; }
-        .btn-secondary { background: #4b5563; }
-        .btn-secondary:hover { background: #374151; }
-        .btn-danger { background: #ef4444; }
-        .btn-danger:hover { background: #dc2626; }
-        
-        .control-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .color-picker { display: flex; align-items: center; gap: 5px; font-size: 14px; }
-        
+        button:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #000; }
+        .btn-primary { background: var(--accent-2); }
+        .btn-danger { background: var(--accent-1); color: #fff; }
+        .btn-success { background: var(--accent-3); }
+
+        .settings-box {
+            display: flex; align-items: center; gap: 10px; padding: 5px 10px;
+            border: 2px solid #000; background: #f9f9f9; box-shadow: 2px 2px 0px #000;
+        }
+        .settings-box input[type="color"] { border: none; width: 30px; height: 30px; padding: 0; cursor: none; }
+        .settings-box input[type="range"] { cursor: none; }
+
+        /* Prompter Container - Floating Transparent Glass */
         #prompter-container {
             position: relative; width: 100%; height: 100%;
             display: flex; justify-content: center;
-            background-color: var(--bg-color);
+            background-color: rgba(0, 0, 0, 0.5); /* Float effect over camera */
+            backdrop-filter: blur(2px);
         }
         #prompter-text {
-            position: absolute; top: 100%; width: 85%;
-            font-size: 60px; line-height: 1.5; text-align: center;
+            position: absolute; top: 100%; width: 85%; max-width: 1200px;
+            font-size: 60px; line-height: 1.6; text-align: center;
             white-space: pre-wrap; padding-bottom: 100vh;
-            color: var(--text-color);
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            color: var(--text-color); font-family: 'Segoe UI', sans-serif;
+            font-weight: 700; text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
         }
         .mirrored { transform: scaleX(-1); }
-        
+
+        /* Floating Playback Overlay */
         #playback-overlay {
-            position: fixed; bottom: 20px; right: 20px; z-index: 101;
-            display: none; background: rgba(0,0,0,0.6); padding: 15px; 
-            border-radius: 12px; backdrop-filter: blur(5px);
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 101;
+            display: none; background: #fff; padding: 15px; border: 3px solid #000;
+            box-shadow: 8px 8px 0px #000; display: flex; gap: 15px; align-items: center;
         }
+        .rec-indicator {
+            display: inline-block; width: 15px; height: 15px; border-radius: 50%;
+            background: red; animation: pulse 1.5s infinite; border: 2px solid #000;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
+    <div class="custom-cursor" id="cursor"></div>
+    <div class="dotted-grid-bg"></div>
     <video id="camera-bg" autoplay muted playsinline></video>
 
+    <!-- Main Controls -->
     <div id="controls">
-        <textarea id="script-input" placeholder="Paste your video script here..."></textarea>
-        
-        <div style="display: flex; width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-            <div class="control-group">
-                <button onclick="saveScript()">💾 Save</button>
-                <button class="btn-secondary" onclick="loadScript()">📂 Load</button>
-                <button class="btn-secondary" onclick="toggleCamera()">📷 Toggle Camera</button>
-                <button class="btn-danger" id="record-btn" onclick="toggleRecording()" style="display:none;">🔴 Record Video</button>
-            </div>
-            
-            <div class="control-group">
-                <div class="color-picker">
-                    <label>Text:</label>
-                    <input type="color" id="text-color" value="#ffffff">
+        <div class="card-wrapper" id="card-wrapper">
+            <div class="card-glow" id="card-glow"></div>
+            <div class="controls-inner">
+                
+                <div class="header-brand">
+                    <h2>OBSERVE WITH SATYAM | PROMPTER</h2>
+                    <div class="social-icons">
+                        <a href="https://linkedin.com/in/satyam-kumar5286o" target="_blank" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="https://youtube.com/@observe_with_satyam?si=xKMKJHWzcjVFeDFj" target="_blank" title="YouTube"><i class="fab fa-youtube"></i></a>
+                        <a href="https://instagram.com/observe_with_satyam?igsh=MWdxYnp1Z283b2ZyeQ==" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="https://satqm.github.io/Portfolio-" target="_blank" title="Portfolio"><i class="fas fa-globe"></i></a>
+                    </div>
                 </div>
-                <div class="color-picker">
-                    <label>Background:</label>
-                    <input type="color" id="bg-color" value="#000000">
+
+                <textarea id="script-input" placeholder=">> INITIALIZE SCRIPT HERE..."></textarea>
+                
+                <div class="control-row">
+                    <div class="control-group">
+                        <button onclick="saveScript()">💾 Save</button>
+                        <button onclick="loadScript()">📂 Load</button>
+                        <button onclick="toggleCamera()" class="btn-primary">📷 Camera</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="settings-box">
+                            <label>Text:</label> <input type="color" id="text-color" value="#ffffff">
+                            <label>Bg:</label> <input type="color" id="bg-color" value="#000000">
+                        </div>
+                        <div class="settings-box">
+                            <label>Size:</label> <input type="range" id="font-size" min="30" max="150" value="70">
+                            <label>Speed:</label> <input type="range" id="speed" min="1" max="15" value="4">
+                        </div>
+                    </div>
                 </div>
-                <label>Size: <input type="range" id="font-size" min="30" max="120" value="60"></label>
-                <label>Speed: <input type="range" id="speed" min="1" max="10" value="3"></label>
-            </div>
-            
-            <div class="control-group">
-                <button class="btn-secondary" onclick="toggleMirror()">🪞 Mirror Text</button>
-                <button onclick="startPrompter()" style="background: #10b981;">▶️ Start Prompter</button>
+
+                <div class="control-row">
+                    <button onclick="toggleMirror()">🪞 Mirror Text</button>
+                    <div class="control-group" id="video-controls" style="display:none;">
+                        <button class="btn-danger" id="record-btn" onclick="toggleRecording()">🔴 REC</button>
+                        <button class="btn-primary" id="pause-rec-btn" onclick="pauseResumeRecording()" style="display:none;">⏸ Pause Video</button>
+                    </div>
+                    <button onclick="startPrompter()" class="btn-success">▶️ LAUNCH PROMPTER</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="prompter-container" onclick="togglePlayPause()">
+    <!-- Teleprompter Surface -->
+    <div id="prompter-container" onclick="togglePlayPauseText()">
         <div id="prompter-text"></div>
     </div>
 
-    <div id="playback-overlay">
-        <button onclick="stopPrompter()" class="btn-secondary">⏹ Stop Prompter</button>
-        <span id="recording-status" style="color: #ef4444; font-weight: bold; margin-left: 10px; display: none;">⏺ Recording...</span>
+    <!-- Active Prompter Controls -->
+    <div id="playback-overlay" style="display: none;">
+        <div id="rec-status" style="display:none; align-items:center; gap:8px; font-weight:bold; color:red;">
+            <span class="rec-indicator"></span> RECORDING
+        </div>
+        <button onclick="togglePlayPauseText()" id="play-pause-text-btn" class="btn-primary">⏸ Pause Text</button>
+        <button onclick="stopPrompter()" class="btn-danger">⏹ STOP PROMPTER & SAVE VIDEO</button>
     </div>
 
     <script>
-        // UI Elements
+        // --- Custom Cursor & Glow ---
+        const cursor = document.getElementById('cursor');
+        const cardWrapper = document.getElementById('card-wrapper');
+        const cardGlow = document.getElementById('card-glow');
+
+        document.addEventListener('mousemove', e => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        cardWrapper.addEventListener('mousemove', e => {
+            const rect = cardWrapper.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            cardGlow.style.setProperty('--mouse-x', x + '%');
+            cardGlow.style.setProperty('--mouse-y', y + '%');
+        });
+
+        // --- Elements ---
         const controls = document.getElementById('controls');
         const scriptInput = document.getElementById('script-input');
         const prompterText = document.getElementById('prompter-text');
         const prompterContainer = document.getElementById('prompter-container');
-        const fontSizeSlider = document.getElementById('font-size');
-        const speedSlider = document.getElementById('speed');
-        const textColorPicker = document.getElementById('text-color');
-        const bgColorPicker = document.getElementById('bg-color');
         const overlay = document.getElementById('playback-overlay');
+        const playPauseTextBtn = document.getElementById('play-pause-text-btn');
         
-        // Camera & Recording Elements
+        // Video Elements
         const cameraBg = document.getElementById('camera-bg');
+        const videoControlsGroup = document.getElementById('video-controls');
         const recordBtn = document.getElementById('record-btn');
-        const recordingStatus = document.getElementById('recording-status');
+        const pauseRecBtn = document.getElementById('pause-rec-btn');
+        const recStatus = document.getElementById('rec-status');
 
-        let isPlaying = false;
+        let isTextPlaying = false;
         let animationId;
         let yPos = window.innerHeight;
-        
-        // Camera State
+
+        // --- Video Recording State ---
         let stream = null;
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
 
-        // --- IndexedDB Setup ---
+        // --- IndexedDB ---
         let db;
-        const request = indexedDB.open("TeleprompterDB", 1);
+        const request = indexedDB.open("TeleprompterDBNeo", 1);
         request.onupgradeneeded = e => {
             db = e.target.result;
             if (!db.objectStoreNames.contains("scripts")) db.createObjectStore("scripts", { keyPath: "id" });
@@ -157,134 +272,138 @@
         request.onsuccess = e => { db = e.target.result; loadScript(); };
 
         function saveScript() {
-            const tx = db.transaction(["scripts"], "readwrite");
-            tx.objectStore("scripts").put({ id: "main_script", content: scriptInput.value });
+            db.transaction(["scripts"], "readwrite").objectStore("scripts").put({ id: "main_script", content: scriptInput.value });
         }
-
         function loadScript() {
-            const tx = db.transaction(["scripts"], "readonly");
-            tx.objectStore("scripts").get("main_script").onsuccess = e => {
+            db.transaction(["scripts"], "readonly").objectStore("scripts").get("main_script").onsuccess = e => {
                 if (e.target.result) scriptInput.value = e.target.result.content;
             };
         }
 
-        // --- Camera & Recording Logic ---
+        // --- Settings Updates ---
+        const hexToRgba = (hex, alpha) => {
+            const [r, g, b] = hex.match(/\w\w/g).map(x => parseInt(x, 16));
+            return `rgba(${r},${g},${b},${alpha})`;
+        };
+
+        function updateStyles() {
+            prompterText.style.color = document.getElementById('text-color').value;
+            prompterText.style.fontSize = document.getElementById('font-size').value + 'px';
+            const bgColor = document.getElementById('bg-color').value;
+            // Float effect: 40% opacity if camera is off, 20% if camera is on to let it shine through
+            const alpha = stream ? 0.2 : 0.8; 
+            prompterContainer.style.backgroundColor = hexToRgba(bgColor, alpha);
+        }
+        
+        document.getElementById('text-color').addEventListener('input', updateStyles);
+        document.getElementById('bg-color').addEventListener('input', updateStyles);
+        document.getElementById('font-size').addEventListener('input', updateStyles);
+        function toggleMirror() { prompterText.classList.toggle('mirrored'); }
+
+        // --- Camera & Recording ---
         async function toggleCamera() {
             if (stream) {
-                // Turn off camera
-                stream.getTracks().forEach(track => track.stop());
+                stream.getTracks().forEach(t => t.stop());
                 stream = null;
                 cameraBg.style.display = 'none';
-                prompterContainer.style.backgroundColor = bgColorPicker.value;
-                recordBtn.style.display = 'none';
+                videoControlsGroup.style.display = 'none';
+                if(isRecording) stopRecordingAction();
             } else {
-                // Turn on camera
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     cameraBg.srcObject = stream;
                     cameraBg.style.display = 'block';
-                    
-                    // Make the background transparent so the camera shows through
-                    updateColors(true);
-                    recordBtn.style.display = 'block';
-                } catch (err) {
-                    alert("Could not access camera/microphone. Please check permissions.");
-                }
+                    videoControlsGroup.style.display = 'flex';
+                } catch (err) { alert("Camera access required for this feature."); }
             }
+            updateStyles();
         }
 
         function toggleRecording() {
             if (!stream) return;
-
             if (isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                recordBtn.innerText = "🔴 Record Video";
-                recordingStatus.style.display = 'none';
+                stopRecordingAction();
             } else {
                 recordedChunks = [];
                 mediaRecorder = new MediaRecorder(stream);
-                
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'teleprompter_recording.webm';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                };
-
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = saveVideoFile;
                 mediaRecorder.start();
+                
                 isRecording = true;
-                recordBtn.innerText = "⏹ Stop Recording";
-                recordingStatus.style.display = 'inline';
+                recordBtn.innerText = "⏹ STOP VIDEO";
+                pauseRecBtn.style.display = 'inline-block';
+                pauseRecBtn.innerText = "⏸ Pause Video";
+                recStatus.style.display = 'flex';
             }
         }
 
-        // --- Design Adjustments ---
-        function updateColors(forceTransparent = false) {
-            const hexToRgba = (hex, alpha) => {
-                const [r, g, b] = hex.match(/\w\w/g).map(x => parseInt(x, 16));
-                return `rgba(${r},${g},${b},${alpha})`;
-            };
-
-            prompterText.style.color = textColorPicker.value;
-            
-            if (stream || forceTransparent) {
-                // If camera is on, use the selected color but make it 50% transparent
-                prompterContainer.style.backgroundColor = hexToRgba(bgColorPicker.value, 0.5);
-            } else {
-                // Solid background
-                prompterContainer.style.backgroundColor = bgColorPicker.value;
+        function pauseResumeRecording() {
+            if (!mediaRecorder) return;
+            if (mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+                pauseRecBtn.innerText = "▶️ Resume Video";
+                recStatus.innerHTML = '<span class="rec-indicator" style="background:orange;"></span> PAUSED';
+                recStatus.style.color = "orange";
+            } else if (mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+                pauseRecBtn.innerText = "⏸ Pause Video";
+                recStatus.innerHTML = '<span class="rec-indicator"></span> RECORDING';
+                recStatus.style.color = "red";
             }
         }
 
-        textColorPicker.addEventListener('input', () => updateColors());
-        bgColorPicker.addEventListener('input', () => updateColors());
-        fontSizeSlider.addEventListener('input', e => prompterText.style.fontSize = e.target.value + 'px');
+        function stopRecordingAction() {
+            if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            isRecording = false;
+            recordBtn.innerText = "🔴 REC";
+            pauseRecBtn.style.display = 'none';
+            recStatus.style.display = 'none';
+        }
 
-        function toggleMirror() { prompterText.classList.toggle('mirrored'); }
+        function saveVideoFile() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none'; a.href = url; a.download = 'ObserveWithSatyam_Takes.webm';
+            document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
+        }
 
-        // --- Prompter Logic ---
+        // --- Prompter Execution ---
         function startPrompter() {
             const text = scriptInput.value.trim();
-            if (!text) return alert("Please enter a script first.");
-
+            if (!text) return alert("Enter script.");
             prompterText.innerText = text;
             controls.classList.add('hidden');
-            overlay.style.display = 'block';
+            overlay.style.display = 'flex';
             yPos = window.innerHeight;
             prompterText.style.top = yPos + 'px';
-            
-            isPlaying = true;
+            isTextPlaying = true;
+            playPauseTextBtn.innerText = "⏸ Pause Text";
             scrollText();
         }
 
         function stopPrompter() {
-            isPlaying = false;
+            isTextPlaying = false;
             cancelAnimationFrame(animationId);
             controls.classList.remove('hidden');
             overlay.style.display = 'none';
+            // Automatically stop recording if it was running when prompter finishes
+            if(isRecording) stopRecordingAction(); 
         }
 
-        function togglePlayPause() {
+        function togglePlayPauseText() {
             if (controls.classList.contains('hidden')) {
-                isPlaying = !isPlaying;
-                if (isPlaying) scrollText();
+                isTextPlaying = !isTextPlaying;
+                playPauseTextBtn.innerText = isTextPlaying ? "⏸ Pause Text" : "▶️ Resume Text";
+                if (isTextPlaying) scrollText();
                 else cancelAnimationFrame(animationId);
             }
         }
 
         function scrollText() {
-            if (!isPlaying) return;
-            yPos -= (parseInt(speedSlider.value) * 0.5);
+            if (!isTextPlaying) return;
+            yPos -= (parseInt(document.getElementById('speed').value) * 0.5);
             prompterText.style.top = yPos + 'px';
             
             if (yPos < -prompterText.clientHeight) {
@@ -293,9 +412,8 @@
             }
             animationId = requestAnimationFrame(scrollText);
         }
-        
-        // Init colors
-        updateColors();
+
+        updateStyles(); // Init colors
     </script>
 </body>
 </html>
